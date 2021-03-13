@@ -19,7 +19,7 @@ output:
     highlight: tango
     code_folding: show
     number_section: true
-    self_contained: true
+    self_contained: false
 bibliography: assets/bibliography_esg.bib
 csl: assets/biomed-central.csl
 mainfont: NanumGothic
@@ -55,18 +55,18 @@ library(tidyverse)
 library(readxl)
 
 # 차량등록현황
-gu2_tbl <- read_excel("data/성남시 연료별 차량,인구,세대.xlsx",
+gu2_tbl <- read_excel("data/성남시 연료별 차량,인구,세대.xlsx",
                       sheet="인구 및 세대,차량 현황",
                       range = "A6:D38",
                       col_types =  c("text", "text", "text", "text"))
 
-gu1_tbl <- read_excel("data/성남시 연료별 차량,인구,세대.xlsx",
+gu1_tbl <- read_excel("data/성남시 연료별 차량,인구,세대.xlsx",
                        sheet="인구 및 세대,차량 현황",
                        range = "E9:H31",
                       col_types =  c("text", "text", "text", "text"))
 
 ## 성남시 연료별 차량 등록현황
-fuel_dat <- read_excel("data/성남시 연료별 차량,인구,세대.xlsx",
+fuel_dat <- read_excel("data/성남시 연료별 차량,인구,세대.xlsx",
                        sheet="인구 및 세대,차량 현황",
                        range = "F35:L48")
 ```
@@ -90,10 +90,13 @@ bundang_tbl <- gu1_tbl %>%
   set_names(names(gu2_tbl)) %>% 
   mutate(구명 = "분당구")
 
-sungnam_tbl <- bind_rows(bundang_tbl, jungwon_tbl) %>% 
+sungnam_tbl <- bind_rows(sujung_tbl, jungwon_tbl) %>% 
   bind_rows(bundang_tbl) %>% 
   relocate(구명, -1) %>% 
-  rename(동명 = 행정기관)
+  rename(동명 = 행정기관, `1세대평균`= `1세대평균\r\n(대)`)  %>% 
+  mutate(세대수     = parse_number(세대수),
+         `차량(대)` = parse_number(`차량(대)`),
+         `1세대평균` = parse_number(`1세대평균`))
 
 sungnam_tbl 
 ```
@@ -136,6 +139,8 @@ Well-to-Wheel Analysis of Greenhouse Gas Emissions of Transportation Fuels in Ko
 
 # 친환경 연료장착 자동차 {#basics-vehicles}
 
+성남시 전체 친환경부터 화석연료를 사용하는 연료를 기준으로 등록된 차량댓수를 살펴보자.
+
 ```{r green-fuel}
 library(reactable)
 
@@ -159,5 +164,106 @@ green_tbl %>%
     누적비율 = colDef(format = colFormat(separators = TRUE, percent = TRUE, digits = 1))))
 ```
 
+## 성남 3구 연료별 등록차량 {#성남3구}
 
+
+::: {.blue}
+LPG 자동차가 상대적으로 수정구와 중원구가 분당구와 비교하여 높음
+:::
+
+```{r green-fuel-gu}
+library(extrafont)
+loadfonts()
+
+green_tbl %>% 
+  group_by(구명, 연료구분) %>% 
+  summarise(차량댓수 = sum(차량댓수)) %>% 
+  ggplot(aes(x=구명, y=차량댓수, fill = 연료구분)) +
+    geom_col(position = "dodge") +
+    theme_bw(base_family = "NanumGothic") +
+    labs(x = "",
+         title = "구별 자동차 등록댓수") +
+    scale_y_continuous(labels = scales::comma)
+
+green_tbl %>% 
+  group_by(구명, 연료구분) %>% 
+  summarise(차량댓수 = sum(차량댓수)) %>% 
+  ggplot(aes(x=연료구분, y=차량댓수, fill = 구명)) +
+    geom_col(position = "dodge") +
+    theme_bw(base_family = "NanumGothic") +
+    labs(x = "",
+         title = "연료별 자동차 등록댓수") +
+    scale_y_continuous(labels = scales::comma)
+```
+
+# 세대수 동별 자동차 등록댓수 {#자동차-동별}
+
+```{r dong-household}
+household_vehicle_g <- sungnam_tbl  %>% 
+  ggplot(aes(x=세대수, y= `차량(대)`, color = `구명`,
+             text = paste('구/동명 :', glue::glue("{구명}:{동명}"), "\n",
+                          '세대수:', scales::comma(세대수), "\n",
+                          '차량(대): ', scales::comma(`차량(대)`)))) +
+    geom_point() +
+    theme_bw(base_family = "NanumGothic") +
+    labs(x = "세대수",
+         y = "차량(대)",
+         title = "세대수와 차량댓수 산점도",
+         subtitle = "점은 성남3구 동을 나타냄") +
+    scale_y_continuous(labels = scales::comma) +
+    scale_x_continuous(labels = scales::comma)  
+
+plotly::ggplotly(household_vehicle_g, tooltip = "text" )
+```
+
+# 지도 시각화 {#visualize-map}
+
+세대별 차량등록댓수와 1세대 평균 등록댓수를 성남시 지도에 표시하게 되면 흥미로운 결과를 파악할 수 있다. 
+
+```{r map-viz}
+library(sf)
+
+korea_sf <- read_sf("data/map/HangJeongDong_ver20201001.geojson")
+
+sungnam_sf <- korea_sf %>% 
+  filter(str_detect(sggnm, "성남시")) %>% 
+  select(adm_nm, geometry) %>% 
+  separate(adm_nm, into = c("도명", "구명", "동명"), sep=" ") %>% 
+  mutate(구명 = str_remove(구명, "성남시")) %>% 
+  select(구명, 동명, geometry)
+
+sungnam_car_sf <- sungnam_sf %>% 
+  left_join(sungnam_tbl)
+```
+
+
+```{r fill-color}
+library(leaflet)
+library(RColorBrewer)
+
+addr_labels <- glue::glue("구/동명: {sungnam_car_sf$구명}/{sungnam_car_sf$동명} <p>
+                           세대수: {scales::comma(sungnam_car_sf$세대수)} <p>
+                           차량(대): {scales::comma(sungnam_car_sf$`차량(대)`)} <p>
+                           1세대 평균차량(대): {scales::comma(sungnam_car_sf$`1세대평균`)} <p>") %>% 
+  lapply(htmltools::HTML)
+
+bins <- seq(0.4, 1.6, by = 0.2)
+pal <- colorBin("YlOrRd", domain = sungnam_car_sf$`1세대평균`, bins = bins)
+
+leaflet(sungnam_car_sf) %>%
+  addTiles() %>% 
+  addPolygons(opacity = 1.0, fillOpacity = 0.5,
+              weight = 1,
+              fillColor  = ~pal(`1세대평균`),
+              highlightOptions = highlightOptions(color = "black", weight = 3,  bringToFront = TRUE),
+              label = addr_labels,
+              labelOptions = labelOptions(
+              style = list("font-weight" = "normal", padding = "3px 8px"),
+              textsize = "15px",
+              direction = "auto")) %>% 
+    addProviderTiles(providers$OpenStreetMap) %>% 
+    addLegend(pal = pal, values = ~`1세대평균`, opacity = 0.7, title = NULL,
+    position = "bottomright")
+
+```
 
