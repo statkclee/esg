@@ -46,8 +46,11 @@ div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 10px;}
 ```
 
 
-#  
+# ESG 주요 사항 [^esg-kpmg] {#overview-of-ESG}
 
+[^esg-kpmg]: [삼정KPMG 경제연구원 (2020), "ESG 경영 시대 전략 패러다임 대전환"](https://assets.kpmg/content/dam/kpmg/kr/pdf/2020/kr-esg-strategy-20201217.pdf)
+
+코로나19에 따른 ESG 경영 트렌드는 가속화되고 있다.
 
 ```{r ESG-hierarchy}
 library(collapsibleTree)
@@ -78,6 +81,41 @@ esg_tbl <- tribble(~"ESG", ~"sub_ESG",
 collapsibleTree(esg_tbl, 
                 hierarchy  = c("ESG", "sub_ESG"),
                 root       = "ESG",
+                tooltip    = TRUE,
+                attributes = "ESG",
+                fill       = "#64ABC2",
+                collapsed  = TRUE, 
+                width      = 800,
+                zoomable   = FALSE)
+
+```
+
+
+# ESG 경영 차별점 {#overview-of-ESG-difference}
+
+# ESG 데이터 [^esg-data] {#ESG-data}
+
+[^esg-data]: [Datarade (2019-11-21), "What is ESG Data and how to use it?"](https://www.youtube.com/watch?v=eOy8ztvhGYo)
+
+ESG 데이터를 특정 회사를 기준으로 둔다면 회사 자체에 대한 ESG 평가지표는 회사 웹사이트, ESG 보고서, 지속가능 보고서, 재무제표가 포함된 사업보고서에 찾을 수 있는데 이런 경우 회사 자체 평가 ESG 평가지표가 주를 이룬다.
+NGO 나 정부에서 제공하는 ESG 데이터는 NGO/정부 웹사이트나 보고서에서 찾을 수 있고 이런 경우 제3자 ESG 평가지표정보가 포함된다. 공공 오픈 데이터는 실시간 ESG 신호를 제공하는 특징이 있고 뉴스, SNS 소셜 미디어, 회사 리뷰 등을 통해 수집이 가능하다.
+
+![](fig/esg-data-source.png)
+
+```{r esg-data-src}
+esg_src_tbl <- tribble(~"ESG", ~"data",
+                        "Environmental", "Carbon Emissions",
+                        "Environmental", "Renewable Energy",
+                        "Environmental", "Water Stress",
+                        "Social", "Human Capital",
+                        "Social", "Labor Statistics",
+                        "Governance", "Business Ethics",
+                        "Governance", "Corruption",
+                        "Governance", "Board Stats")
+
+collapsibleTree(esg_src_tbl, 
+                hierarchy  = c("ESG", "data"),
+                root       = "Business",
                 tooltip    = TRUE,
                 attributes = "ESG",
                 fill       = "#64ABC2",
