@@ -1,0 +1,91 @@
+---
+layout: page
+title: "ESG"
+subtitle: "ESG  "
+author:
+- name: "이광춘"
+  affiliation: "[Tidyverse Korea](https://www.facebook.com/groups/tidyverse/)"
+date: "`r Sys.Date()`"
+tags: ["데이터 과학", "Data Science", "데이터 사이언스", "한글", "PDF", "LaTeX", "작업흐름", "디지털 글쓰기", "글쓰기", "저작"]
+output:
+  html_document: 
+    include:
+      after_body: assets/footer.html
+      before_body: assets/header.html
+    theme: default
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    highlight: tango
+    code_folding: show
+    number_section: true
+    self_contained: false
+bibliography: assets/bibliography_esg.bib
+csl: assets/biomed-central.csl
+mainfont: NanumGothic
+urlcolor: blue
+linkcolor: blue
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+header-includes:
+   - \usepackage{gensymb}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE,
+                      comment="", digits = 3, tidy = FALSE, prompt = FALSE, fig.align = 'center')
+```
+
+
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 10px;}
+</style>
+```
+
+
+#  
+
+
+```{r ESG-hierarchy}
+library(collapsibleTree)
+library(tidyverse)
+library(colorspace)
+
+
+
+esg_tbl <- tribble(~"ESG", ~"sub_ESG",
+                   "환경", "기후변화, 탄소배출",
+                   "환경", "환경오염",
+                   "환경", "생물 다양성",
+                   "환경", "자원 및 폐기물 관리",
+                   "환경", "에너지 효율",
+                   "사회", "고객만족",
+                   "사회", "데이터보호,프라이버시",
+                   "사회", "인권,성별 및 다양성",
+                   "사회", "지역사회 관리",
+                   "사회", "공급망 관리",
+                   "지배구조", "이사회 구성",
+                   "지배구조", "감사위원회 구조",
+                   "지배구조", "뇌물 및 부패",
+                   "지배구조", "로비, 정치 기부금",
+                   "지배구조", "기업윤리") %>% 
+  mutate(ESG_Color = colorspace::rainbow_hcl(15))
+
+
+collapsibleTree(esg_tbl, 
+                hierarchy  = c("ESG", "sub_ESG"),
+                root       = "ESG",
+                tooltip    = TRUE,
+                attributes = "ESG",
+                fill       = "#64ABC2",
+                collapsed  = TRUE, 
+                width      = 800,
+                zoomable   = FALSE)
+
+```
+
+
+

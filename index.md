@@ -15,3 +15,4 @@ title: "ESG"
 
 
 1. [연료유형별 다차원 분석](sn-car-by-fuel.html)
+1. [MSG 아니고 ESG](what-is-esg.html)
