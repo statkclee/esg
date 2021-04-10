@@ -287,4 +287,13 @@ esg_tbl %>%
 
 ```
 
+# 법적 근거 확대 {#esg-law}
+
+- [배군득 (2021. 04. 08.), "환경부, 환경기술산업법 개정..ESG 환경책임투자 근거 마련", 데일리안](https://news.v.daum.net/v/cUJLHwKr6h)
+    - 환경기술 및 환경산업 지원법
+
+# ESG vs CSR vs ... [^esg-csr] [^esg-csr-diff] {#esg-csr}
+
+[^esg-csr]: [ESG와 사회적 가치, 다른가?](https://m.blog.naver.com/campsis/222229608179)
+[^esg-csr-diff]: [[ESG가 미래다] ESG는 CSR과 어떤 차이가 있는가](https://m.hankooki.com/m_wk_view.php?WM=wk&FILE_NO=d2syMDIxMDQwOTE2MTUxNDE0NjM4MC5odG0=)
 
