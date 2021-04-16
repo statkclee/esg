@@ -1,0 +1,176 @@
+---
+layout: page
+title: "ESG"
+subtitle: "환경성과지수 (**EPI**, Environmental Performance Index)"
+author:
+- name: "이광춘"
+  affiliation: "[Tidyverse Korea](https://www.facebook.com/groups/tidyverse/)"
+date: "`r Sys.Date()`"
+tags: ["데이터 과학", "Data Science", "데이터 사이언스", "한글", "ESG", "EPI", "환경성과지수"]
+output:
+  html_document: 
+    include:
+      after_body: assets/footer.html
+      before_body: assets/header.html
+    theme: default
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    highlight: tango
+    code_folding: show
+    number_section: true
+    self_contained: true
+bibliography: assets/bibliography_esg.bib
+csl: assets/biomed-central.csl
+mainfont: NanumGothic
+urlcolor: blue
+linkcolor: blue
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+header-includes:
+   - \usepackage{gensymb}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE,
+                      comment="", digits = 3, tidy = FALSE, prompt = FALSE, fig.align = 'center')
+```
+
+# 환경 성과 지수 {#EPI}
+
+[환경성과지수 (**EPI**, Environmental Performance Index)](https://en.wikipedia.org/wiki/Environmental_Performance_Index)는 예일대와 컬럼비아 대학에서 1999부터 2005년 사이 공개한  Environmental Sustainability Index (ESI)를 계승한 것으로 세계경제포럼이 각구의 환경과 관련된 경제, 사회 정책을 종합적으로 평가하는 지수다.
+
+
+## 지표 구성 {#epi-index-composition}
+
+가장 최근 지표구성에서 일부 변경사항이 있지만 2016년과 크게 차이가 나지 않는다. 가중치만 일부 차이가 있을 뿐이다.
+
+```{r epi-index}
+library(tidyverse)
+library(rvest)
+library(httr)
+
+epi_html <- read_html(x = "https://en.wikipedia.org/wiki/Environmental_Performance_Index")
+
+epi_raw <- epi_html %>% 
+  html_node(xpath = '//*[@id="mw-content-text"]/div[1]/table[1]') %>% 
+  html_table(fill = FALSE, header = TRUE) %>% 
+  as_tibble() %>% 
+  janitor::clean_names()
+
+epi_tbl <- epi_raw %>% 
+  mutate(objective = ifelse(str_detect(objective, "Performance"), "Ecosystem vitality (60%)", objective)) %>% 
+  separate(objective, into = c("objective", "obj_wgt"), sep = "\\(") %>% 
+  mutate(obj_wgt = parse_number(obj_wgt)) %>%
+  mutate(issue_category = ifelse(str_detect(issue_category, "Performance"), NA, issue_category)) %>% 
+  mutate(issue_category = zoo::na.locf(issue_category)) %>% 
+  separate(issue_category, into = c("issue", "issue_wgt"), sep = "\\(") %>% 
+  mutate(issue_wgt = parse_number(issue_wgt)) %>% 
+  mutate(ind_wgt = str_extract(indicator, pattern = "\\([0-9].*\\)$") %>% parse_number) %>% 
+  mutate(indicator = str_remove(indicator, pattern = "\\([0-9].*\\)$"))
+
+epi_tbl
+```
+
+
+```{r epi-index-viz}
+library(collapsibleTree)
+
+collapsibleTree(epi_tbl, 
+                hierarchy  = c("objective", "issue", "indicator"),
+                root       = "EPI",
+                tooltip    = TRUE,
+                attribute   = "ind_wgt", 
+                collapsed  = TRUE, 
+                width      = 800,
+                zoomable   = FALSE)
+```
+
+# EPI 국가 순위 {#epi-ranking}
+
+## 데이터 크롤링 {#epi-ranking-crawling}
+
+
+```{r epi-ranking}
+
+## 2020년 EPI 국가순위 
+epi_2020_raw <- epi_html %>% 
+  html_node(css = '#mw-content-text > div.mw-parser-output > div:nth-child(19)') %>% 
+  html_nodes("li") %>% 
+  html_text() %>% 
+  str_trim() %>% 
+  as_tibble()
+
+epi_2020 <- epi_2020_raw %>% 
+  mutate(epi_score   = parse_number(value)) %>% 
+  mutate(country = str_extract(value, "[a-zA-Z\\s]*") %>% str_trim) %>% 
+  mutate(rank = row_number(),
+         year = 2020) %>% 
+  select(year, rank, country, epi_score)
+
+## 2018년 EPI 국가순위 
+epi_2018 <- epi_html %>% 
+  html_node(xpath = '//*[@id="mw-content-text"]/div[1]/table[2]') %>% 
+  html_table(header = TRUE, fill = TRUE) %>% 
+  janitor::clean_names() %>% 
+  as_tibble() %>% 
+  mutate(year = 2018) %>% 
+  select(year, rank, country, epi_score)
+
+## 2016년 EPI 국가순위 
+epi_2016_raw <- epi_html %>% 
+  html_node(css = '#mw-content-text > div.mw-parser-output > div:nth-child(27)') %>% 
+  html_nodes("li") %>% 
+  html_text() %>% 
+  str_trim() %>% 
+  as_tibble()
+
+epi_2016 <- epi_2016_raw %>% 
+  mutate(epi_score   = parse_number(value)) %>% 
+  mutate(country = str_extract(value, "[a-zA-Z\\s]*") %>% str_trim) %>% 
+  mutate(rank = row_number(),
+         year = 2016) %>% 
+  select(year, rank, country, epi_score)
+
+## 2014년 EPI 국가순위 
+epi_2014_raw <- epi_html %>% 
+  html_node(css = '#mw-content-text > div.mw-parser-output > div:nth-child(32)') %>% 
+  html_nodes("li") %>% 
+  html_text() %>% 
+  str_trim() %>% 
+  as_tibble()
+
+epi_2014 <- epi_2014_raw %>% 
+  mutate(epi_score   = parse_number(value)) %>% 
+  mutate(country = str_extract(value, "[a-zA-Z\\s]*") %>% str_trim) %>% 
+  mutate(rank = row_number(),
+         year = 2014) %>% 
+  select(year, rank, country, epi_score)
+
+## 전체 -----------------------
+epi_tbl <- bind_rows(epi_2020, epi_2018) %>% 
+  bind_rows(epi_2016) %>% 
+  bind_rows(epi_2014)
+
+epi_tbl %>% 
+  write_rds("data/epi_tbl.rds")
+```
+
+## 시각화 {#epi-ranking-crawling-viz}
+
+```{r epi-ranking-vis}
+epi_tbl <- read_rds("data/epi_tbl.rds")
+
+epi_tbl %>% 
+  mutate(country = ifelse(str_detect(country, "United States"), "USA", country)) %>% 
+  filter(str_detect(country, pattern = "(Korea)|(Canada)|(France)|(Italy)|(USA)|(Germany)|(Japan)")) %>% 
+  mutate(country = fct_reorder(country, -epi_score)) %>% 
+  ggplot(aes(x=year, y = epi_score, group = country, color = country)) +
+    geom_line() + 
+    geom_point() +
+    theme_minimal(base_family = "NanumGothic") +
+    labs(x="", y="환경성과점수", color = "국가",
+         title = "주요 경쟁국가 환경성과점수")
+```
