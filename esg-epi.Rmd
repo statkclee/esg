@@ -161,16 +161,19 @@ epi_tbl %>%
 ## 시각화 {#epi-ranking-crawling-viz}
 
 ```{r epi-ranking-vis}
+library(ggflags) # remotes::install_github("ellisp/ggflags")
 epi_tbl <- read_rds("data/epi_tbl.rds")
 
 epi_tbl %>% 
   mutate(country = ifelse(str_detect(country, "United States"), "USA", country)) %>% 
   filter(str_detect(country, pattern = "(Korea)|(Canada)|(France)|(Italy)|(USA)|(Germany)|(Japan)")) %>% 
+  mutate(flag = countrycode::countrycode(country, origin = 'country.name', destination = 'genc2c') %>% str_to_lower(.)) %>% 
   mutate(country = fct_reorder(country, -epi_score)) %>% 
   ggplot(aes(x=year, y = epi_score, group = country, color = country)) +
     geom_line() + 
     geom_point() +
+    geom_flag(aes(country = flag), size = 5) +
     theme_minimal(base_family = "NanumGothic") +
     labs(x="", y="환경성과점수", color = "국가",
-         title = "주요 경쟁국가 환경성과점수")
+         title = "주요 경쟁국가 환경성과점수") 
 ```
