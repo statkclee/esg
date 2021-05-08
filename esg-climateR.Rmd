@@ -1,0 +1,120 @@
+---
+layout: page
+title: "ESG"
+subtitle: "`climateR` 특별판"
+author:
+- name: "이광춘"
+  affiliation: "[Tidyverse Korea](https://www.facebook.com/groups/tidyverse/)"
+date: "`r Sys.Date()`"
+tags: ["데이터 과학", "Data Science", "데이터 사이언스", "ESG", "climateR"]
+output:
+  html_document: 
+    include:
+      after_body: assets/footer.html
+      before_body: assets/header.html
+    theme: default
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    highlight: tango
+    code_folding: show
+    number_section: true
+    self_contained: true
+bibliography: assets/bibliography_esg.bib
+csl: assets/biomed-central.csl
+mainfont: NanumGothic
+urlcolor: blue
+linkcolor: blue
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+header-includes:
+   - \usepackage{gensymb}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE,
+                      comment="", digits = 3, tidy = FALSE, prompt = FALSE, fig.align = 'center')
+```
+
+
+```{=html}
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 10px;}
+</style>
+```
+
+
+# 온도와 강수량 [^precipation] {#precipation-temp}
+
+[^precipation]: [Mike Johnson, "Gridded Climate Data in R - Introduction to AOI & climateR"](https://mikejohnson51.github.io/climateR-intro/#1)
+
+
+```{r esg-climateR}
+# remotes::install_github("mikejohnson51/AOI") # suggested!
+# remotes::install_github("mikejohnson51/climateR")
+
+library(AOI)
+library(climateR)
+library(sf)
+library(raster)
+library(rasterVis)
+
+korea <- aoi_get(country = "KOR")
+
+plot(korea$geometry)
+
+prcp <-  getTerraClim(korea, param = "prcp", startDate = "2019-01-01")
+# chirps <- getCHIRPS(korea, startDate = "2018-01-01", endDate = "2018-01-04" )
+
+p1 <- levelplot(prcp$terraclim_prcp, par.settings = BTCTheme, main = "January 2018; TerraClim", margin = TRUE) +
+  layer(sp.lines(as_Spatial(korea), col="red", lwd=2))
+
+# p2 <- levelplot(chirps,  par.settings = BTCTheme, main = "Janaury 1-4, 2018; CHIRPS", layout=c(2, 2)) +
+#   layer(sp.lines(as_Spatial(korea), col="white", lwd=3))
+
+
+```
+
+```{r aoi-geocode}
+AOI::geocode("Republic of Korea")
+```
+
+```{r aoi-map}
+
+AOI::aoi_get(country = "KOR") %>% 
+   AOI::aoi_map(returnMap = TRUE)
+```
+
+## 쿠키 모양을 찍는 데 쓰는 모형 {#cookie-cutter}
+
+AOI는 일종의 **Cookie Cutter**(쿠키 모양을 찍는 데 쓰는 모형)로 이해할 수 있고 이를 이용하여 대한민국 강수량을 뽑아내보자.
+
+```{r aoi-crs}
+AOI     <- aoi_get(country = "KOR")
+(extent <- st_bbox(AOI))
+
+(crs    = st_crs(AOI)$proj4string)
+```
+
+```{r aoi-view}
+plot(AOI$geometry, border  = "darkred",lwd = 2)
+plot(st_as_sfc(extent), add = TRUE,  lwd = 3)
+```
+
+
+```{r aoi-prcp}
+rain <- getTerraClim(aoi_get(country = "KOR"), param = "prcp", startDate = "2018-01-19")
+# temp <- getTerraClim(aoi_get(country = "KOR"), param = "tmax", startDate = "2018-01-19")
+levelplot(rain$terraclim_prcp)
+# levelplot(temp)
+```
+
+
+```{r aoi-tec}
+param_meta$gridmet
+model_meta$maca
+param_meta$terraclim
+```
+
