@@ -1,0 +1,103 @@
+---
+layout: page
+title: "ESG"
+subtitle: "대한민국 화력발전소"
+author:
+- name: "이광춘"
+  affiliation: "[Tidyverse Korea](https://www.facebook.com/groups/tidyverse/)"
+date: "`r Sys.Date()`"
+tags: ["데이터 과학", "Data Science", "데이터 사이언스", "한글", "ESG", "석탄", "화력발전소"]
+output:
+  html_document: 
+    include:
+      after_body: assets/footer.html
+      before_body: assets/header.html
+    theme: default
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    highlight: tango
+    code_folding: show
+    number_section: true
+    self_contained: true
+bibliography: assets/bibliography_esg.bib
+csl: assets/biomed-central.csl
+mainfont: NanumGothic
+urlcolor: blue
+linkcolor: blue
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+header-includes:
+   - \usepackage{gensymb}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE,
+                      comment="", digits = 3, tidy = FALSE, prompt = FALSE, fig.align = 'center')
+```
+
+
+# 데이터 {#data}
+
+[미세먼지 주범 석탄화력발전소, 대선 후보 입장은?](https://www.hani.co.kr/arti/society/area/793198.html) 한겨례 신문 2017년 기사를 보면 석탄화력발전소에 대한 구체적인 정보가 담겨있다. World Resources Institute [Global Power Plant Database](https://datasets.wri.org/dataset/globalpowerplantdatabase) 에서 전세계 화력발전소 중 한국만 추려 본다.
+
+```{r data-esg}
+library(tidyverse)
+
+plant_df <- read_csv("data/globalpowerplantdatabasev120/global_power_plant_database.csv")
+
+plant_tbl <- plant_df %>% 
+  filter(country == "KOR") %>% 
+  select("name", "capacity_mw", "latitude", "longitude", fuel = "primary_fuel", year = "commissioning_year", "owner", "url", 
+generation_gwh = "estimated_generation_gwh")
+
+plant_tbl %>% 
+  reactable::reactable()
+```
+
+
+# 현황분석 {#eda}
+
+## 회사별 {#owner}
+
+회사별 용량과 발전양 순위는 다음과 같다.
+
+```{r eda}
+library(reactable)
+
+plant_tbl %>% 
+  group_by(owner) %>% 
+  summarise(capacity_mw    = sum(capacity_mw, na.rm = TRUE),
+            generation_gwh = sum(generation_gwh, na.rm = TRUE)) %>% 
+  arrange(desc(generation_gwh)) %>% 
+  reactable::reactable(  columns = list(
+    owner          = colDef(name = "소유 회사", minWidth = 100),
+    capacity_mw    = colDef(name = "용량(MW)",  format = colFormat(digits = 0, separators = TRUE)),
+    generation_gwh = colDef(name = "발전(GWh)",  format = colFormat(digits = 0, separators = TRUE))
+  ))
+```
+
+## 연료별 {#fuel-type}
+
+
+```{r fueltype}
+
+plant_tbl %>% 
+  group_by(fuel) %>% 
+  summarise(capacity_mw    = sum(capacity_mw, na.rm = TRUE),
+            generation_gwh = sum(generation_gwh, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  arrange(desc(generation_gwh)) %>% 
+  # add_row(fuel = "합계", capacity_mw = sum(capacity_mw, na.rm = TRUE), generation_gwh = sum(generation_gwh))
+  mutate(용량비율 = capacity_mw / sum(capacity_mw),
+         발전비율 = generation_gwh / sum(generation_gwh)) %>% 
+  reactable::reactable(  columns = list(
+    fuel           = colDef(name = "연료", minWidth = 50),
+    capacity_mw    = colDef(name = "용량(MW)",  format = colFormat(digits = 0, separators = TRUE)),
+    용량비율       = colDef(name = "용량비율",  format = colFormat(percent = TRUE, digits = 1)),
+    generation_gwh = colDef(name = "발전(GWh)",  format = colFormat(digits = 0, separators = TRUE)),
+    발전비율       = colDef(name = "발전비율",  format = colFormat(percent = TRUE, digits = 1))
+  ))
+```
