@@ -90,14 +90,104 @@ plant_tbl %>%
             generation_gwh = sum(generation_gwh, na.rm = TRUE)) %>% 
   ungroup() %>% 
   arrange(desc(generation_gwh)) %>% 
-  # add_row(fuel = "합계", capacity_mw = sum(capacity_mw, na.rm = TRUE), generation_gwh = sum(generation_gwh))
   mutate(용량비율 = capacity_mw / sum(capacity_mw),
          발전비율 = generation_gwh / sum(generation_gwh)) %>% 
-  reactable::reactable(  columns = list(
-    fuel           = colDef(name = "연료", minWidth = 50),
-    capacity_mw    = colDef(name = "용량(MW)",  format = colFormat(digits = 0, separators = TRUE)),
-    용량비율       = colDef(name = "용량비율",  format = colFormat(percent = TRUE, digits = 1)),
-    generation_gwh = colDef(name = "발전(GWh)",  format = colFormat(digits = 0, separators = TRUE)),
-    발전비율       = colDef(name = "발전비율",  format = colFormat(percent = TRUE, digits = 1))
+  bind_rows(summarise(.,
+                    across(where(is.numeric), sum),
+                    across(where(is.character), ~"합계"))) %>% 
+  reactable::reactable( defaultPageSize = 11,
+    columns = list(
+      fuel           = colDef(name = "연료", minWidth = 70),
+      capacity_mw    = colDef(name = "용량(MW)",  format = colFormat(digits = 0, separators = TRUE)),
+      용량비율       = colDef(name = "용량비율",  format = colFormat(percent = TRUE, digits = 1)),
+      generation_gwh = colDef(name = "발전(GWh)",  format = colFormat(digits = 0, separators = TRUE)),
+      발전비율       = colDef(name = "발전비율",  format = colFormat(percent = TRUE, digits = 1))
   ))
 ```
+
+
+## 회사 X 연료 {#fuel-type-owner}
+
+### 용량 {#fuel-type-owner-capa}
+
+```{r fuel-owner-capa}
+plant_tbl %>% 
+  group_by(fuel, owner) %>% 
+  summarise(capacity_mw    = sum(capacity_mw, na.rm = TRUE)) %>% 
+  pivot_wider(names_from = fuel, values_from = capacity_mw, values_fill  = 0) %>% 
+  arrange(desc(Coal)) %>% 
+  reactable::reactable( defaultPageSize = 10,
+    columns = list(
+      owner   = colDef(name = "회사", minWidth = 150),
+      Biomass    = colDef(name = "바이오",  format = colFormat(digits = 0, separators = TRUE)),      
+      Coal    = colDef(name = "석탄",  format = colFormat(digits = 0, separators = TRUE)),
+      Gas     = colDef(name = "가스",  format = colFormat(digits = 0, separators = TRUE)),
+      Hydro   = colDef(name = "수력",  format = colFormat(digits = 0, separators = TRUE)),
+      Nuclear = colDef(name = "원자력",  format = colFormat(digits = 0, separators = TRUE)),
+      Oil     = colDef(name = "원유",  format = colFormat(digits = 0, separators = TRUE)),
+      Solar   = colDef(name = "태양열",  format = colFormat(digits = 0, separators = TRUE)),
+      Waste   = colDef(name = "폐열",  format = colFormat(digits = 0, separators = TRUE)),
+      `Wave and Tidal`   = colDef(name = "해수",  format = colFormat(digits = 0, separators = TRUE)),
+      Wind    = colDef(name = "풍력",  format = colFormat(digits = 0, separators = TRUE))
+  ))  
+```
+
+### 발전 {#fuel-type-owner-generation}
+
+```{r fuel-owner-generation}
+plant_tbl %>% 
+  group_by(fuel, owner) %>% 
+  summarise(generation_gwh    = sum(generation_gwh, na.rm = TRUE)) %>% 
+  pivot_wider(names_from = fuel, values_from = generation_gwh, values_fill  = 0) %>% 
+  arrange(desc(Coal)) %>% 
+  reactable::reactable( defaultPageSize = 10,
+    columns = list(
+      owner   = colDef(name = "회사", minWidth = 150),
+      Biomass    = colDef(name = "바이오",  format = colFormat(digits = 0, separators = TRUE)),      
+      Coal    = colDef(name = "석탄",  format = colFormat(digits = 0, separators = TRUE)),
+      Gas     = colDef(name = "가스",  format = colFormat(digits = 0, separators = TRUE)),
+      Hydro   = colDef(name = "수력",  format = colFormat(digits = 0, separators = TRUE)),
+      Nuclear = colDef(name = "원자력",  format = colFormat(digits = 0, separators = TRUE)),
+      Oil     = colDef(name = "원유",  format = colFormat(digits = 0, separators = TRUE)),
+      Solar   = colDef(name = "태양열",  format = colFormat(digits = 0, separators = TRUE)),
+      Waste   = colDef(name = "폐열",  format = colFormat(digits = 0, separators = TRUE)),
+      `Wave and Tidal`   = colDef(name = "해수",  format = colFormat(digits = 0, separators = TRUE)),
+      Wind    = colDef(name = "풍력",  format = colFormat(digits = 0, separators = TRUE))
+  ))  
+
+```
+
+
+# 발전소 위치 {#eda-location}
+
+```{r power-plant-location}
+library(glue)
+library(leaflet)
+
+plant_tbl %>% 
+  leaflet() %>% 
+    addProviderTiles(provider = providers$OpenStreetMap) %>% 
+    addMarkers(lng=~longitude, lat = ~latitude, clusterOptions = markerClusterOptions(),
+               popup = ~ as.character(glue("<strong> {name} </strong> <br>
+                                           &middot; 회사: {owner}<br>
+                                           &middot; 용량: {scales::comma(capacity_mw, accuracy = 1) } MW<br>
+                                           &middot; 발전: {scales::comma(generation_gwh, accuracy = 1)} GWh<br>
+                                           &middot; 연료: {fuel}")))
+```
+
+## 석탄 발전소 위치 {#eda-location-coal}
+
+```{r power-plant-location-coal}
+
+plant_tbl %>% 
+  filter(fuel == "Coal") %>% 
+  leaflet() %>% 
+    addProviderTiles(provider = providers$OpenStreetMap) %>% 
+    addMarkers(lng=~longitude, lat = ~latitude, clusterOptions = markerClusterOptions(),
+               popup = ~ as.character(glue("<strong> {name} </strong> <br>
+                                           &middot; 회사: {owner}<br>
+                                           &middot; 용량: {scales::comma(capacity_mw, accuracy = 1) } MW<br>
+                                           &middot; 발전: {scales::comma(generation_gwh, accuracy = 1)} GWh<br>
+                                           &middot; 연료: {fuel}")))
+```
+
