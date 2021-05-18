@@ -19,7 +19,7 @@ output:
     highlight: tango
     code_folding: show
     number_section: true
-    self_contained: true
+    self_contained: false
 bibliography: assets/bibliography_esg.bib
 csl: assets/biomed-central.csl
 mainfont: NanumGothic
