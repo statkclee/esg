@@ -81,6 +81,7 @@ plant_tbl %>%
 
 ## 연료별 {#fuel-type}
 
+발전에는 다양한 연료가 투입되는데 국내에 소재한 발전소 용량과 발전에 대해 살펴보자.
 
 ```{r fueltype}
 
@@ -108,7 +109,11 @@ plant_tbl %>%
 
 ## 회사 X 연료 {#fuel-type-owner}
 
+소유 회사와 발전에 사용되는 연료를 교차 분석하여 보자. 
+
 ### 용량 {#fuel-type-owner-capa}
+
+먼저 용량에 대해 석탄을 기준으로 의존도가 높은 회사를 살펴보자.
 
 ```{r fuel-owner-capa}
 plant_tbl %>% 
@@ -134,6 +139,8 @@ plant_tbl %>%
 
 ### 발전 {#fuel-type-owner-generation}
 
+앞서 용량(Capacity)에 대해 살펴봤다면 발전(Generation)에 대해 살펴보자.
+
 ```{r fuel-owner-generation}
 plant_tbl %>% 
   group_by(fuel, owner) %>% 
@@ -143,7 +150,7 @@ plant_tbl %>%
   reactable::reactable( defaultPageSize = 10,
     columns = list(
       owner   = colDef(name = "회사", minWidth = 150),
-      Biomass    = colDef(name = "바이오",  format = colFormat(digits = 0, separators = TRUE)),      
+      Biomass = colDef(name = "바이오",  format = colFormat(digits = 0, separators = TRUE)),      
       Coal    = colDef(name = "석탄",  format = colFormat(digits = 0, separators = TRUE)),
       Gas     = colDef(name = "가스",  format = colFormat(digits = 0, separators = TRUE)),
       Hydro   = colDef(name = "수력",  format = colFormat(digits = 0, separators = TRUE)),
@@ -154,11 +161,12 @@ plant_tbl %>%
       `Wave and Tidal`   = colDef(name = "해수",  format = colFormat(digits = 0, separators = TRUE)),
       Wind    = colDef(name = "풍력",  format = colFormat(digits = 0, separators = TRUE))
   ))  
-
 ```
 
 
-# 발전소 위치 {#eda-location}
+# 전체 발전소 위치 {#eda-location}
+
+국내 전체 발전소 위경도 정보가 있어 이를 반영하여 발전소 위치를 지도에 시각화 시켜보자.
 
 ```{r power-plant-location}
 library(glue)
@@ -177,6 +185,8 @@ plant_tbl %>%
 
 ## 석탄 발전소 위치 {#eda-location-coal}
 
+석탄 발전소만 추려 지도에 시각화 시켜보자.
+
 ```{r power-plant-location-coal}
 
 plant_tbl %>% 
@@ -191,7 +201,9 @@ plant_tbl %>%
                                            &middot; 연료: {fuel}")))
 ```
 
-## 시도 경계 석탄 발전소 위치 {#eda-location-coal-sido}
+## 석탄 발전소 용량 {#eda-location-coal-sido}
+
+석탄 발전소 용량을 기준으로 시도 경계를 추가하여 가시성을 높여보자.
 
 ```{r sido-shapefile}
 library(sf)
@@ -215,6 +227,8 @@ plant_tbl %>%
                                            &middot; 용량: {scales::comma(capacity_mw, accuracy = 1) } MW<br>
                                            &middot; 발전: {scales::comma(generation_gwh, accuracy = 1)} GWh<br>
                                            &middot; 연료: {fuel}"))) %>% 
+    addCircleMarkers( radius = ~ (capacity_mw)^(1/2),
+                      stroke = FALSE, fillOpacity = 0.5) %>% 
     ## 시도 경계 shapefile --------------------------------------
     addPolygons(data = sido_sf, opacity = 1.0, fillOpacity = 0.1,
             weight = 1,
@@ -223,5 +237,85 @@ plant_tbl %>%
             style = list("font-weight" = "normal", padding = "3px 8px"),
             textsize = "15px",
             direction = "auto"))
+```
+
+
+## 석탄 발전소 발전량 {#eda-location-coal-capa}
+
+추정 발전량을 기준으로 시도 경계를 포함시켜 지도 위에 시각화를 해 보자.
+
+
+```{r sido-shapefile-capa}
+plant_tbl %>% 
+  filter(fuel == "Coal") %>% 
+  leaflet() %>% 
+    ## 석탄 화력 발전소 위치 --------------------------------------
+    addProviderTiles(provider = providers$OpenStreetMap) %>% 
+    addMarkers(lng=~longitude, lat = ~latitude, clusterOptions = markerClusterOptions(),
+               popup = ~ as.character(glue("<strong> {name} </strong> <br>
+                                           &middot; 회사: {owner}<br>
+                                           &middot; 용량: {scales::comma(capacity_mw, accuracy = 1) } MW<br>
+                                           &middot; 발전: {scales::comma(generation_gwh, accuracy = 1)} GWh<br>
+                                           &middot; 연료: {fuel}"))) %>% 
+    addCircleMarkers( radius = ~ (generation_gwh)^(1/3),
+                      stroke = FALSE, fillOpacity = 0.5) %>% 
+    ## 시도 경계 shapefile --------------------------------------
+    addPolygons(data = sido_sf, opacity = 1.0, fillOpacity = 0.1,
+            weight = 1,
+            highlightOptions = highlightOptions(color = "black", weight = 3,  bringToFront = TRUE),
+            labelOptions = labelOptions(
+            style = list("font-weight" = "normal", padding = "3px 8px"),
+            textsize = "15px",
+            direction = "auto"))
+```
+
+
+# Many Models {#many-models}
+
+발전소 용량(capacity)과 발전량(generation)과의 관계를 발전소가 나름 어느 정도 있는 석탄, 가스, 수력을 추려 회귀모형을 만들어보자.
+
+```{r many-models}
+library(broom)
+
+plant_nest_tbl <- plant_tbl %>% 
+  filter(fuel %in% c("Coal", "Gas", "Hydro")) %>% 
+  na.omit() %>% 
+  select(name, fuel, capacity_mw, generation_gwh) %>% 
+  group_by(fuel) %>% 
+  nest() %>% 
+  ungroup()
+
+generation_model <- function(df) {
+  lm(generation_gwh ~ capacity_mw, data = df)
+}
+
+plant_nest_tbl <- plant_nest_tbl %>% 
+  mutate(model        = map(data, generation_model),
+         model_glance = map(model, glance),
+         rsquare      = map_dbl(model_glance, ~.$r.squared))
+
+plant_nest_tbl
+```
+
+회귀식과 발전 원료를 나눠 용량과 발전량과의 상관 관계를 살펴보자.
+
+```{r rbokeh-trellisope}
+library(rbokeh)
+library(trelliscopejs)
+
+# 시각화 -----
+coal_plot <- function(data, model) {
+  figure(xlim = c(0, 3000), ylim=c(0, 15000), tools = NULL) %>% 
+    ly_points(capacity_mw, generation_gwh, data=data, hover=data) %>% 
+    ly_abline(model)
+}
+
+# trelliscope 그래프
+plant_nest_tbl <- plant_nest_tbl %>% 
+  mutate(plot = map2_plot(data, model, coal_plot)) %>% 
+  arrange(rsquare)
+
+plant_nest_tbl %>% 
+  trelliscope(name = "power_plant", nrow=1, ncol=3, path="coal_power_plant")
 ```
 

@@ -1,0 +1,12 @@
+__loadDisplayList__4850db0e([
+  {
+    "group": "common",
+    "name": "power_plant",
+    "desc": "",
+    "n": 3,
+    "height": 500,
+    "width": 500,
+    "updated": "2021-05-18 15:56:16",
+    "keySig": "5528b42a7d83ceb16f6e03705c491495"
+  }
+])
