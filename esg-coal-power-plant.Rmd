@@ -191,3 +191,37 @@ plant_tbl %>%
                                            &middot; 연료: {fuel}")))
 ```
 
+## 시도 경계 석탄 발전소 위치 {#eda-location-coal-sido}
+
+```{r sido-shapefile}
+library(sf)
+
+korea_sf <- st_read("data/map/HangJeongDong_ver20201001.geojson")
+
+sido_sf <- korea_sf %>% 
+  group_by(sido, sidonm) %>% 
+  summarise(cnt = n()) %>% 
+  ungroup() %>% 
+  select(-cnt)
+
+plant_tbl %>% 
+  filter(fuel == "Coal") %>% 
+  leaflet() %>% 
+    ## 석탄 화력 발전소 위치 --------------------------------------
+    addProviderTiles(provider = providers$OpenStreetMap) %>% 
+    addMarkers(lng=~longitude, lat = ~latitude, clusterOptions = markerClusterOptions(),
+               popup = ~ as.character(glue("<strong> {name} </strong> <br>
+                                           &middot; 회사: {owner}<br>
+                                           &middot; 용량: {scales::comma(capacity_mw, accuracy = 1) } MW<br>
+                                           &middot; 발전: {scales::comma(generation_gwh, accuracy = 1)} GWh<br>
+                                           &middot; 연료: {fuel}"))) %>% 
+    ## 시도 경계 shapefile --------------------------------------
+    addPolygons(data = sido_sf, opacity = 1.0, fillOpacity = 0.1,
+            weight = 1,
+            highlightOptions = highlightOptions(color = "black", weight = 3,  bringToFront = TRUE),
+            labelOptions = labelOptions(
+            style = list("font-weight" = "normal", padding = "3px 8px"),
+            textsize = "15px",
+            direction = "auto"))
+```
+
