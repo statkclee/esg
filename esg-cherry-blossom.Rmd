@@ -1,0 +1,84 @@
+---
+layout: page
+title: "ESG"
+subtitle: "벗꽃개화시기 (일본)"
+author:
+- name: "이광춘"
+  affiliation: "[Tidyverse Korea](https://www.facebook.com/groups/tidyverse/)"
+date: "`r Sys.Date()`"
+tags: ["데이터 과학", "Data Science", "데이터 사이언스", "ESG", "기후위기", "벗꽃"]
+output:
+  html_document: 
+    include:
+      after_body: assets/footer.html
+      before_body: assets/header.html
+    theme: default
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    highlight: tango
+    code_folding: show
+    number_section: true
+    self_contained: true
+bibliography: assets/bibliography_esg.bib
+csl: assets/biomed-central.csl
+mainfont: NanumGothic
+urlcolor: blue
+linkcolor: blue
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+header-includes:
+   - \usepackage{gensymb}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE,
+                      comment="", digits = 3, tidy = FALSE, prompt = FALSE, fig.align = 'center')
+```
+
+# BBC 뉴스기사 {#bbc-news-letter}
+
+BBC [Japan's cherry blossom 'earliest peak since 812'](https://www.bbc.com/news/world-asia-56574142) 기사에 따르면 일본에서 벗꽃 개화시기를 기록한 812년 이후 올해가 가장 개화시기가 빠르다고 한다.
+
+![](fig/cherry-blossom.png){width="442"}
+
+
+# 벗꽃 개화 데이터 {#cherry-blossom-data}
+
+일본 벗꽃 개화 데이터는 [Historical Series of Phenological data for Cherry Tree Flowering at Kyoto City](http://atmenv.envi.osakafu-u.ac.jp/aono/kyophenotemp4/) 웹사이트에서 얻을 수 있다. 
+
+```{r get-data}
+
+library(tidyverse)
+library(rvest)
+
+osaka_url <- "http://atmenv.envi.osakafu-u.ac.jp/aono/kyophenotemp4/"
+
+cb_text <- osaka_url %>% 
+  read_html() %>% 
+  html_nodes(xpath = '//*[@id="main"]/article/div[2]/pre') %>% 
+  html_text()
+
+cb_dat <- tibble(txt = cb_text)
+
+cb_tbl <- cb_dat %>% 
+  mutate(text = str_split(txt, pattern = "\r\n")) %>% 
+  unnest(text) %>% 
+  select(text) %>% 
+  filter(str_detect(text, "^4")) %>% 
+  mutate(split_text = str_split(text, pattern = " +")) %>% 
+  mutate(STNNo = map_chr(split_text, 1),
+         AD    = map_chr(split_text, 2),
+         FiFD  = map_chr(split_text, 3),
+         FuFD  = map_chr(split_text, 4)) %>% 
+  select(AD, FuFD) %>% 
+  mutate(AD = as.integer(AD),
+         FuFD = parse_number(FuFD))
+ 
+cb_tbl %>% 
+  arrange(desc(AD)) %>% 
+  reactable::reactable()
+```
+
