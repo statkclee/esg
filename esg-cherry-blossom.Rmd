@@ -98,11 +98,12 @@ cb_tbl <- cb_tbl %>%
 
 cb_gg <- cb_tbl %>%
   mutate(sakura_emoji = emoji("cherry_blossom")) %>% 
-  ggplot(aes(x = AD, y=date,
+  ggplot(aes(x = as.numeric(AD), y = date,
              text = paste('연도 :', AD, "\n",
                           '날짜:', glue::glue("{month}월 {day}일")))) +
-    geom_text(aes(label = sakura_emoji, hjust = 0.5, vjust = 0.25), 
-              family = "EmojiOne", size = 4, colour = "#FF506E")+
+    geom_point(size = 0.1) +
+    geom_text(aes(label = sakura_emoji, hjust = 0.5, vjust = 0.25),
+              family = "EmojiOne", size = 4, colour = "#FF506E") +
     scale_y_date(
       breaks = c("2000-03-27", "2000-04-01", "2000-04-10", "2000-04-20", "2000-05-01", "2000-05-04") %>% as.Date(),
       labels = scales::date_format("%b-%d")) +
@@ -110,12 +111,13 @@ cb_gg <- cb_tbl %>%
       limits = c(800, 2020),
       breaks = seq(800, 2000, 100),
       labels = replace(seq(800, 2000, 100), seq(2, 12, 2), "")) +
-    geom_smooth(method = "loess", span = 0.1, fill = "#D2A5C2", colour = "grey", size = 0.5)  +
-    theme_bw()+
+    theme_bw() +
     labs(x        = "", 
          y        = "벚꽃 만개일",
          title    = "벚꽃 개화일을 통한 벚꽃 개화일",
-         subtitle = "일본 교토 서기 800년부터 2021년 까지")
+         subtitle = "일본 교토 서기 800년부터 2021년 까지") +
+    geom_smooth(method = "loess", span = 0.1, colour = "black", size = 3.5)  
+
 
 cb_gg
 ```
