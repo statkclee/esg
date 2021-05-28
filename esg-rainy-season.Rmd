@@ -1,0 +1,250 @@
+---
+layout: page
+title: "ESG"
+subtitle: "화력발전소와 폐암"
+author:
+- name: "이광춘"
+  affiliation: "[Tidyverse Korea](https://www.facebook.com/groups/tidyverse/)"
+date: "`r Sys.Date()`"
+tags: ["데이터 과학", "Data Science", "데이터 사이언스", "한글", "ESG", "장마"]
+output:
+  html_document: 
+    include:
+      after_body: assets/footer.html
+      before_body: assets/header.html
+    theme: default
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+    highlight: tango
+    code_folding: show
+    number_section: true
+    self_contained: false
+bibliography: assets/bibliography_esg.bib
+csl: assets/biomed-central.csl
+mainfont: NanumGothic
+urlcolor: blue
+linkcolor: blue
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+header-includes:
+   - \usepackage{gensymb}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE,
+                      comment="", digits = 3, tidy = FALSE, prompt = FALSE, fig.align = 'center')
+```
+
+
+# 장마 {#rainy-season}
+
+## 데이터 {#rainy-season-data}
+
+기상청 기후통계분석 [장마](https://data.kma.go.kr/climate/rainySeason/selectRainySeasonList.do) 웹사이트에서 지점별 장마 시작일과 관련 데이터를 원자료 형태로 얻을 수가 있다.
+
+```{r rainy-season-data}
+library(tidyverse)
+library(readxl)
+library(extrafont)
+loadfonts()
+
+rainy_dat <- read_excel("data/STCS_장마_20210528145153.xlsx", skip = 2)
+
+rainy_tbl <- rainy_dat %>% 
+  mutate(시작일 = as.Date(시작일),
+         종료일 = as.Date(종료일))
+
+rainy_tbl %>% 
+  arrange(desc(시작일)) %>% 
+  reactable::reactable()
+```
+
+# 장마 EDA {#rainy-season-EDA}
+
+## 장마일수와 강수일수 {#rainy-days}
+
+장마일수와 강수일수간의 관계를 대한민국 주요지역을 뽑아서 이를 10년 단위로 살펴보자.
+
+```{r rainy-season-EDA}
+rainy_gg_tbl <- rainy_tbl %>%
+  filter(지점명 %in% c("강릉", "제주", "서울", "대전", "부산", "광주", "대구")) %>% 
+  mutate(year = lubridate::year(시작일)) %>% 
+  mutate(decade = year %/% 10 * 10) %>%
+  filter(강수일수 > 0)
+
+rainy_days_gg <- rainy_gg_tbl %>% 
+  ggplot(aes(x=장마일수, y=강수일수, group = decade, color = as.factor(decade))) +
+    geom_jitter()  +
+    scale_fill_discrete(name = "decade") +
+    facet_wrap(~지점명) +
+    labs(x = "장마일수",
+         y = "강수일수",
+         color = "십년",
+         title = "1960년 이후 주요지역 장마일수와 강수일수") +
+    theme_bw(base_family = "NanumGothic") +
+    theme(legend.position = "top") +
+    guides(colour = guide_legend(nrow = 1)) 
+
+rainy_days_gg
+```
+
+## 애니메이션 {#rainy-days-animation}
+
+1960년대부터 10년을 단위로 삼아 장마일수와 강수일수 관계를 애니메이션으로 만들어 전체적인 흐름을 파악해보자.
+합계강우량을 크기를 달리하여 더 많은 정보를 한눈에 볼 수 있도록 하고 더 나아가 방향성도 함께 나타내도록 하자.
+
+```{r rainy-days-animation}
+library(gganimate)
+
+rainy_gg_tbl %>% 
+  ggplot(aes(x=장마일수, y=강수일수, group = decade, color = as.factor(decade))) +
+    geom_jitter(aes(size = 합계강수량))  +
+    facet_wrap(~지점명) +
+    labs(x = "장마일수",
+         y = "강수일수",
+         color = "십년",
+         title = "1960년 이후 주요지역 장마일수와 강수일수",
+         subtitle = "연대: {frame_time}") +
+    theme_bw(base_family = "NanumGothic") +
+    theme(legend.position = "top") +
+    guides(colour = guide_legend(nrow = 2)) +
+    transition_time(as.integer(decade))  +
+    shadow_mark(alpha = 0.3, size = 0.5)
+```
+
+## 장마기간 {#rainy-duration}
+
+장마 기간에 따른 합계강수량 시각화 결과는 다음과 같다. 
+특히, 시작일과 종료일을 담고 있는 변수가 날짜형 변수라 두 날짜 정보에서 기간 정보를 날짜 기준으로 추출하는 방식에 주목하자.
+
+```{r rainy-season-duration}
+library(lubridate)
+
+rainy_gg_tbl %>% 
+  mutate(장마기간 = lubridate::interval(시작일, 종료일) %/% days(1)) %>% 
+  ggplot(aes(x = 장마기간, y = 합계강수량)) +
+    geom_jitter() +
+    geom_smooth(method = "loess") +
+    labs(x = "장마기간(일)",
+         y = "합계강수량",
+         title = "1960년 이후 측정도시 장마기간과 합계강수량") +
+    theme_bw(base_family = "NanumGothic")
+```
+
+
+# 연도별 추세 {#rainy-season-average}
+
+## 평균 연도별 추세 {#rainy-season-average-start}
+
+Base R 의 `mean.Date()` 함수를 사용하면 평균 날짜를 구할 수 있다. 이를 반영하여 연도별 주요 장마 시작일과 종료일의 추세를 살펴보자.
+
+```{r rainy-season-duration-season1}
+rainy_viz_tbl <- rainy_tbl %>% 
+  mutate(year = lubridate::year(시작일)) %>% 
+  group_by(year) %>% 
+  summarise(평균_시작일 = mean.Date(시작일),
+            평균_종료일 = mean.Date(종료일),
+            강수량      = mean(합계강수량, na.rm = TRUE)) 
+
+rainy_viz_tbl %>%
+  select(-강수량) %>% 
+  pivot_longer(-year, names_to = "key", values_to = "value") %>% 
+  mutate(standard_date = lubridate::make_date(year = 1000, month = month(value), day = day(value))) %>% 
+  ggplot(aes(x= year, y = standard_date, color = key, group = key)) +
+    geom_point() +
+    geom_smooth(method = "loess")
+
+```
+
+
+## 극단값 추세 {#rainy-season-average-minmax}
+
+최초 시작일과 종료일을 기준으로 살펴보면 장마 시작일과 종료일간의 간격이 넓어지고 있다.
+
+```{r rainy-season-duration-season2}
+rainy_viz_minmax_tbl <- rainy_tbl %>% 
+  mutate(year = lubridate::year(시작일)) %>% 
+  group_by(year) %>% 
+  summarise(최초_시작일 = min(시작일),
+            최종_종료일 = max(종료일),
+            강수량      = mean(합계강수량, na.rm = TRUE)) 
+
+rainy_viz_minmax_tbl %>%
+  select(-강수량) %>% 
+  pivot_longer(-year, names_to = "key", values_to = "value") %>% 
+  mutate(standard_date = lubridate::make_date(year = 1000, month = month(value), day = day(value))) %>% 
+  ggplot(aes(x= year, y = standard_date, color = key, group = key)) +
+    geom_point() +
+    geom_smooth(method = "loess")
+```
+
+
+## 평균 장마기간 추세 {#rainy-season-average-duration}
+
+평균 장마 시작일과 종료일을 구한 후에 이를 합계강수량과 교차하여 시각화한다.
+
+```{r rainy-season-duration-mean}
+rainy_period_tbl <- rainy_tbl %>% 
+  mutate(year = lubridate::year(시작일) %>% as.integer) %>% 
+  group_by(year) %>% 
+  summarise(평균_시작일 = mean.Date(시작일),
+            평균_종료일 = mean.Date(종료일),
+            강수량      = mean(합계강수량, na.rm = TRUE)) %>% 
+  mutate(decade = year %/% 10 * 10)
+
+
+rainy_average_gg <- rainy_period_tbl %>% 
+  mutate(장마기간 = lubridate::interval(평균_시작일, 평균_종료일) %/% days(1)) %>% 
+  ggplot(aes(x= 장마기간, y = 강수량)) +
+    geom_point() +
+    geom_smooth(method = "loess") +
+    theme_bw(base_family = "NanumGothic") +
+    labs(title = "평균 장마기간과 평균 합계강수량")
+  
+
+rainy_average_gg
+```
+
+연도별 평균 장마기간과 합계강수량을 평균을 내어 애니메이션으로 흔적을 달리하면 기후변화에 따른 장마기간의 변화를 시각적으로 확인할 수 있다.
+
+```{r animation-show-trends}
+rainy_period_tbl %>% 
+  mutate(장마기간 = lubridate::interval(평균_시작일, 평균_종료일) %/% days(1)) %>% 
+  ggplot(aes(x= 장마기간, y = 강수량, size = 강수량, color = as.factor(decade))) +
+    geom_point() +
+    transition_time(year)  +
+    shadow_trail(0.05) +
+    # shadow_wake(wake_length = 1, alpha = FALSE) +
+    theme_bw(base_family = "NanumGothic") +
+    labs(title = "평균 장마기간과 평균 합계강수량",
+         subtitle = "연도: {frame_time}",
+         color = "십년")
+```
+
+
+## 평균 연도별 추세 {#rainy-season-average-start}
+
+Base R 의 `mean.Date()` 함수를 사용하면 평균 날짜를 구할 수 있다. 이를 반영하여 연도별 주요 장마 시작일과 종료일의 추세를 살펴보자.
+
+```{r rainy-season-duration-reveal}
+rainy_viz_tbl %>%
+  select(-강수량) %>% 
+  pivot_longer(-year, names_to = "key", values_to = "value") %>% 
+  mutate(key = factor(key, levels = c("평균_종료일", "평균_시작일"))) %>% 
+  mutate(standard_date = lubridate::make_date(year = 1000, month = month(value), day = day(value))) %>% 
+  ggplot(aes(x= year, y = standard_date, color = key, group = key)) +
+    geom_line() +
+    geom_point() +
+    theme_bw(base_family = "NanumGothic") +
+    labs(title = "연도별 평균 장마 시작일과 종료일 추세",
+         color = "구분",
+         x = "",
+         y = "") +
+    theme(legend.position = "top") +
+    scale_y_date(date_labels = "%m월 %d일") +
+    transition_reveal(year)
+    
+```
